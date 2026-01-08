@@ -19,40 +19,41 @@ export const usePitchEngine = () => {
 
   const framesRef = useRef<DetailedPitchData[]>([]);
 
-  const start = useCallback(async (audioCtx: AudioContext) => {
-    if (isCountingDown || isRunning) return;
+const start = useCallback(async (audioCtx: AudioContext) => {
+  if (isCountingDown || isRunning) return;
 
-    setError(null);
-    setDiagnosis(null);
-    setDisplayScore(0);
-    framesRef.current = [];
-    setIsCountingDown(true);
-    setCountdown(3);
+  setError(null);
+  setDiagnosis(null);
+  setDisplayScore(0);
+  framesRef.current = [];
+  setIsCountingDown(true);
+  setCountdown(3); // 3から開始
 
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    setTimeout(async () => {
-      try {
-        await engine.start(audioCtx, (data) => {
-          setCurrentData(data);
-          framesRef.current.push(data);
-        });
-        setIsCountingDown(false);
-        setIsRunning(true);
-      } catch (err) {
-        setError("マイクの起動に失敗しました");
-        setIsCountingDown(false);
+  const timer = setInterval(() => {
+    setCountdown((prev) => {
+      // 1の次にここが呼ばれたら、タイマーを止めて0は表示させない
+      if (prev <= 1) {
+        clearInterval(timer);
+        return 0; 
       }
-    }, 3000);
-  }, [engine, isCountingDown, isRunning]);
+      return prev - 1;
+    });
+  }, 1000);
+
+  setTimeout(async () => {
+    try {
+      await engine.start(audioCtx, (data) => {
+        setCurrentData(data);
+        framesRef.current.push(data);
+      });
+      setIsCountingDown(false); // ここで1→計測へ切り替える
+      setIsRunning(true);
+    } catch (err) {
+      setError("マイクの起動に失敗しました");
+      setIsCountingDown(false);
+    }
+  }, 3000); // ちょうど3秒後にスタート
+}, [engine, isCountingDown, isRunning]);
 
   const stop = useCallback(async () => {
     setIsAnalyzing(true);

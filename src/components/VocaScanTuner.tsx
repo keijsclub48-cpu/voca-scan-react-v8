@@ -53,42 +53,44 @@ const VocaScanTuner: React.FC = () => {
           ${isRunning ? "bg-voca-bg ring-8 ring-voca-bg/50 scale-105" :
             isCountingDown ? "bg-voca-text shadow-[0_0_40px_rgba(217,119,87,0.2)]" : "bg-voca-bg/30"}`}>
 
-          {/* 背景パルス（濃い色版） */}
-          <AnimatePresence>
-            {isRunning && currentData && (
-              <motion.div
-                key="volume-pulse"
-                className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <motion.div
-                  className="bg-voca-primary rounded-full blur-[60px]"
-                  animate={{ 
-                    width: 100 + (currentData.rms * 500),
-                    height: 100 + (currentData.rms * 500),
-                    opacity: 0.6 + (currentData.rms * 0.4) 
-                  }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25, mass: 0.3 }}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+{/* 背景パルス：will-change-transform を追加してGPU負荷を軽減 */}
+<AnimatePresence>
+  {isRunning && currentData && (
+    <motion.div
+      key="volume-pulse"
+      className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center will-change-transform"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="bg-voca-primary rounded-full blur-[40px]" // 60pxから40pxへ少し下げて負荷軽減
+        animate={{ 
+          width: 100 + (currentData.rms * 450),
+          height: 100 + (currentData.rms * 450),
+          opacity: 0.6 + (currentData.rms * 0.4) 
+        }}
+        // transitionを少し緩やかにして計算負荷を下げる
+        transition={{ type: "spring", stiffness: 200, damping: 30, mass: 1 }}
+      />
+    </motion.div>
+  )}
+</AnimatePresence>
 
           {/* コンテンツレイヤー：animate-ping を復活 */}
           <div className="relative z-10 flex flex-col items-center justify-center">
-            <div className="text-8xl font-mono font-black tracking-tighter">
-              {isCountingDown ? (
-                <span key={countdown} className="text-voca-primary inline-block animate-[ping_0.5s_ease-in-out_1]">
-                  {countdown}
-                </span>
-              ) : (
-                <span className={isRunning ? "text-voca-text" : "text-voca-text/20"}>
-                  {isRunning ? (note || "---") : "---"}
-                </span>
-              )}
-            </div>
+{/* カウントダウン表示：0を表示しないように修正 */}
+<div className="text-8xl font-mono font-black tracking-tighter">
+  {isCountingDown && countdown > 0 ? (
+    <span key={countdown} className="text-voca-primary inline-block animate-[ping_0.5s_ease-in-out_1]">
+      {countdown}
+    </span>
+  ) : (
+    <span className={isRunning ? "text-voca-text" : "text-voca-text/20"}>
+      {isRunning ? (note || "---") : "---"}
+    </span>
+  )}
+</div>
 
             <div className="text-xl font-bold mt-4 font-mono">
               {isCountingDown ? "READY..." : (isRunning && pitch ? `${pitch.toFixed(1)} Hz` : "WAITING")}
