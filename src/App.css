@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  /* メインカラー：テラコッタ（温かみ、人間味） */
+  --color-voca-primary: #d97757;
+  /* サブカラー：セージグリーン（調和、リラックス、解析） */
+  --color-voca-secondary: #6b8e4e;
+  /* 背景色：サンドベージュ（目に優しい、自然体） */
+  --color-voca-bg: #f9f8f6;
+  /* 文字色：ウォームチャコール（柔らかい黒） */
+  --color-voca-text: #4a4540;
+  
+  /* 角丸：カードやボタンに共通の大きな丸み */
+  --radius-voca-xl: 2rem;
+}
+
+/* 共通パーツのスタイル */
+@utility voca-card {
+  @apply bg-white rounded-voca-xl shadow-sm border border-gray-100 p-8;
+}
+
+@utility voca-logo {
+  /* italic を削除し、font-black と tracking で力強さを表現 */
+  @apply text-3xl font-black tracking-tighter text-voca-secondary;
+}
