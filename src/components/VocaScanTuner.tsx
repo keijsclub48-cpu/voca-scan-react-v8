@@ -126,6 +126,21 @@ const VocaScanTuner: React.FC = () => {
             ← APPS HUB に戻る
           </a>
         </div>
+        {diagnosis && (
+  <button 
+    onClick={() => {
+      const blob = new Blob([JSON.stringify(diagnosis, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `voca_scan_${diagnosis.diagnosis_id}.json`;
+      a.click();
+    }}
+    className="mt-4 text-[10px] text-voca-primary underline opacity-50 hover:opacity-100"
+  >
+    デバッグ用JSONをダウンロード
+  </button>
+)}
       </div>
       <p className="mt-8 text-[10px] text-voca-text/20 font-bold uppercase tracking-[0.3em]">© 2026 Voca-nical</p>
     </div>
