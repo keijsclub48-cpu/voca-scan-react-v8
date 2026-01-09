@@ -80,29 +80,30 @@ const VocaScanTuner: React.FC = () => {
           </div>
         </div>
         {/* 操作ボタン */}
-        <div className="space-y-4 relative z-20">
-          {!isRunning ? (
-            <button
-              onClick={start}
-              disabled={isCountingDown}
-              className={`w-full py-5 rounded-full font-bold text-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-3
-                ${isCountingDown
-                  ? "bg-voca-text/80 cursor-not-allowed text-voca-primary"
-                  : "bg-voca-primary text-white hover:opacity-90"}`}
-            >
-              {isCountingDown ? `START IN ${countdown}...` : "診断スタート"}
-            </button>
-          ) : (
-            <button
-              onClick={stop}
-              disabled={isAnalyzing}
-              className={`w-full py-5 rounded-full font-bold text-xl text-white transition-all shadow-md
-                ${isAnalyzing ? "bg-gray-300" : "bg-voca-text hover:bg-black active:scale-95"}`}
-            >
-              {isAnalyzing ? "解析中…" : "停止して解析"}
-            </button>
-          )}
-        </div>
+<div className="space-y-4 relative z-20">
+  {!isRunning ? (
+    <button
+      onClick={start}
+      disabled={isCountingDown || isAnalyzing} // ★解析中も押せないように
+      className={`w-full py-5 rounded-full font-bold text-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-3
+        ${(isCountingDown || isAnalyzing)
+          ? "bg-voca-text/20 cursor-not-allowed text-voca-text/40"
+          : "bg-voca-primary text-white hover:opacity-90"}`}
+    >
+      {/* テキストを「測定」に変更 */}
+      {isCountingDown ? `READY... ${countdown}` : isAnalyzing ? "解析中..." : "測定スタート"}
+    </button>
+  ) : (
+    <button
+      onClick={stop}
+      disabled={isAnalyzing}
+      className={`w-full py-5 rounded-full font-bold text-xl text-white transition-all shadow-md
+        ${isAnalyzing ? "bg-gray-300" : "bg-voca-text hover:bg-black active:scale-95"}`}
+    >
+      {isAnalyzing ? "解析中…" : "測定を終了して解析"}
+    </button>
+  )}
+</div>
 
         {/* 診断結果表示 */}
         <div className="mt-8 pt-4">
