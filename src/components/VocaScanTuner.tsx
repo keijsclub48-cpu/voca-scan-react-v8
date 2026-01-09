@@ -38,40 +38,48 @@ const VocaScanTuner: React.FC = () => {
             Unwind. Recharge. Sing.
           </p>
         </header>
-{/* ディスプレイエリア */}
-<div className={`relative w-full aspect-square max-w-[400px] mx-auto 
+        {/* ディスプレイエリア */}
+        <div className={`relative w-full aspect-square max-w-[400px] mx-auto 
   rounded-[3rem] p-10 text-center mb-8 shadow-inner transition-all duration-500
-  ${isCountingDown ? 'bg-black' : 'bg-voca-surface'}`} 
->
-  {/* - 待機中：isCountingDown(false), isRunning(false) -> bg-voca-surface (薄い白)
-     - カウントダウン中：isCountingDown(true), isRunning(false) -> bg-black
-     - 計測中：isCountingDown(false), isRunning(true) -> bg-voca-surface (元の色)
-  */}
-  
-  {/* 背景兼メイン描画レイヤー */}
-  <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-[3rem]">
-    {/* <FastVisualizer isRunning={isRunning} /> */}
-    <FastVisualizer isRunning={isRunning} isCountingDown={isCountingDown} />
-  </div>
-
-  {/* コンテンツレイヤー */}
-  <div className="relative z-10 h-full flex items-center justify-center pointer-events-none">
-    {!isRunning && isCountingDown && (
-      <div className="flex items-center justify-center">
-        <motion.span
-          key={countdown} 
-          initial={{ scale: 0.2, opacity: 0 }} // 小さい状態
-          animate={{ scale: 1.2, opacity: 1 }} // 大きく飛び出す
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="text-9xl font-mono font-black text-voca-primary"
+  ${(isCountingDown || isAnalyzing) ? 'bg-black' : 'bg-voca-surface'}`} // ★解析中も黒背景に
         >
-          {countdown}
-        </motion.span>
-      </div>
-    )}
-  </div>
-</div>
-         {/* 操作ボタン */}
+
+          {/* 背景兼メイン描画レイヤー */}
+          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-[3rem]">
+            {/* FastVisualizer に isAnalyzing も条件として渡す（内部で真っ黒を維持するため） */}
+            <FastVisualizer isRunning={isRunning} isCountingDown={isCountingDown || isAnalyzing} />
+          </div>
+
+          {/* コンテンツレイヤー */}
+          <div className="relative z-10 h-full flex items-center justify-center pointer-events-none">
+
+            {/* 解析中の表示：ぐるぐるスピナーと文字 */}
+            {isAnalyzing && (
+              <div className="flex flex-col items-center animate-in fade-in duration-500">
+                <div className="w-12 h-12 border-4 border-voca-primary/30 border-t-voca-primary rounded-full animate-spin mb-4" />
+                <p className="text-voca-primary text-xs font-bold tracking-[0.3em] animate-pulse">
+                  ANALYZING...
+                </p>
+              </div>
+            )}
+
+            {/* カウントダウン表示（解析中でない時のみ） */}
+            {!isRunning && isCountingDown && !isAnalyzing && (
+              <div className="flex items-center justify-center">
+                <motion.span
+                  key={countdown}
+                  initial={{ scale: 0.2, opacity: 0 }}
+                  animate={{ scale: 1.2, opacity: 1 }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                  className="text-9xl font-mono font-black text-voca-primary"
+                >
+                  {countdown}
+                </motion.span>
+              </div>
+            )}
+          </div>
+        </div>
+        {/* 操作ボタン */}
         <div className="space-y-4 relative z-20">
           {!isRunning ? (
             <button
