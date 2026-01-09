@@ -38,35 +38,40 @@ const VocaScanTuner: React.FC = () => {
             Unwind. Recharge. Sing.
           </p>
         </header>
-
-        {/* 修正後のディスプレイエリアイメージ */}
-        <div className={`relative rounded-[2rem] p-10 text-center mb-8 ...`}>
-
-          {/* 背景兼メイン描画レイヤー */}
-          <div className="absolute inset-0 z-0 pointer-events-none">
-            <FastVisualizer isRunning={isRunning} />
-          </div>
-
-          {/* コンテンツレイヤー (z-10) */}
-          <div className="relative z-10 flex flex-col items-center justify-center pointer-events-none min-h-[280px]">
-            {/* カウントダウンだけは React 側で出す（isRunningではない時なので重ならない） */}
-{!isRunning && isCountingDown && (
-  <div className="text-8xl font-mono font-black text-voca-primary flex items-center justify-center">
-    {/* key={countdown} を持たせることで、3→2→1と変わるたびにアニメーションがリセットされ、毎回ビューンと動きます */}
-    <motion.span
-      key={countdown} 
-      initial={{ scale: 2, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-      className="inline-block"
-    >
-      {countdown}
-    </motion.span>
+{/* ディスプレイエリア */}
+<div className={`relative w-full aspect-square max-w-[400px] mx-auto 
+  rounded-[3rem] p-10 text-center mb-8 shadow-inner transition-all duration-500
+  ${isCountingDown ? 'bg-black' : 'bg-voca-surface'}`} 
+>
+  {/* - 待機中：isCountingDown(false), isRunning(false) -> bg-voca-surface (薄い白)
+     - カウントダウン中：isCountingDown(true), isRunning(false) -> bg-black
+     - 計測中：isCountingDown(false), isRunning(true) -> bg-voca-surface (元の色)
+  */}
+  
+  {/* 背景兼メイン描画レイヤー */}
+  <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-[3rem]">
+    {/* <FastVisualizer isRunning={isRunning} /> */}
+    <FastVisualizer isRunning={isRunning} isCountingDown={isCountingDown} />
   </div>
-)}
-          </div>
-        </div>
-        {/* 操作ボタン */}
+
+  {/* コンテンツレイヤー */}
+  <div className="relative z-10 h-full flex items-center justify-center pointer-events-none">
+    {!isRunning && isCountingDown && (
+      <div className="flex items-center justify-center">
+        <motion.span
+          key={countdown} 
+          initial={{ scale: 0.2, opacity: 0 }} // 小さい状態
+          animate={{ scale: 1.2, opacity: 1 }} // 大きく飛び出す
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="text-9xl font-mono font-black text-voca-primary"
+        >
+          {countdown}
+        </motion.span>
+      </div>
+    )}
+  </div>
+</div>
+         {/* 操作ボタン */}
         <div className="space-y-4 relative z-20">
           {!isRunning ? (
             <button
