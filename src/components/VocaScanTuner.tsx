@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState } from "react";
 import { usePitchEngine } from "../hooks/usePitchEngine";
+import { FastVisualizer } from './FastVisualizer';
+import { motion } from "framer-motion"; // ★これが必要です！
 
 const VocaScanTuner: React.FC = () => {
   const [sessionInfo] = useState(() => {
@@ -12,136 +13,69 @@ const VocaScanTuner: React.FC = () => {
   });
 
   const {
-    isRunning, isAnalyzing, isCountingDown, countdown,
-    pitch, note, confidence, diagnosis, displayScore, 
-    error, start, stop, currentData
+    isRunning,
+    isAnalyzing,
+    isCountingDown,
+    countdown,
+    note,
+    confidence,
+    diagnosis,
+    error,
+    start,
+    stop
   } = usePitchEngine();
-
-  // 針の回転計算（現在のデータを反映）
-  const needleRotation = useMemo(() => {
-    return ((currentData?.cents ?? 0) / 50) * 90;
-  }, [currentData?.cents]);
-
-  // JSONダウンロード機能
-  const downloadJsonResult = () => {
-    if (!diagnosis) return;
-    const dataStr = JSON.stringify(diagnosis, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `VocaScan_V8_Log_${new Date().getTime()}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
 
   const hubUrl = import.meta.env.DEV ? "http://localhost:5173" : "https://app.voca-nical.com";
 
   return (
     <div className="min-h-screen bg-voca-bg p-6 flex flex-col items-center justify-center font-sans text-voca-text">
+      {/* メインカード */}
       <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-sm p-8 relative overflow-hidden border border-gray-100">
 
         <header className="text-center mb-8 mt-4">
-          <h1 className="voca-logo text-3xl">VocaScan Tuner V8</h1>
+          <h1 className="voca-logo text-3xl">VocaScan Tuner V8.2</h1>
           <p className="text-[10px] text-voca-primary font-bold uppercase tracking-[0.2em] mt-2">
             Unwind. Recharge. Sing.
           </p>
         </header>
 
-        {/* ディスプレイエリア：以前の min-h-[260px] とトランジションを復元 */}
-        <div className={`relative rounded-[2rem] p-10 text-center mb-8 transition-all duration-500 min-h-[260px] flex flex-col justify-center overflow-hidden
-          ${isRunning ? "bg-voca-bg ring-8 ring-voca-bg/50 scale-105" :
-            isCountingDown ? "bg-voca-text shadow-[0_0_40px_rgba(217,119,87,0.2)]" : "bg-voca-bg/30"}`}>
+        {/* 修正後のディスプレイエリアイメージ */}
+        <div className={`relative rounded-[2rem] p-10 text-center mb-8 ...`}>
 
-{/* 背景パルス：will-change-transform を追加してGPU負荷を軽減 */}
-<AnimatePresence>
-  {isRunning && currentData && (
-    <motion.div
-      key="volume-pulse"
-      className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center will-change-transform"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+          {/* 背景兼メイン描画レイヤー */}
+          <div className="absolute inset-0 z-0 pointer-events-none">
+            <FastVisualizer isRunning={isRunning} />
+          </div>
+
+          {/* コンテンツレイヤー (z-10) */}
+          <div className="relative z-10 flex flex-col items-center justify-center pointer-events-none min-h-[280px]">
+            {/* カウントダウンだけは React 側で出す（isRunningではない時なので重ならない） */}
+{!isRunning && isCountingDown && (
+  <div className="text-8xl font-mono font-black text-voca-primary flex items-center justify-center">
+    {/* key={countdown} を持たせることで、3→2→1と変わるたびにアニメーションがリセットされ、毎回ビューンと動きます */}
+    <motion.span
+      key={countdown} 
+      initial={{ scale: 2, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="inline-block"
     >
-      <motion.div
-        className="bg-voca-primary rounded-full blur-[40px]" // 60pxから40pxへ少し下げて負荷軽減
-        animate={{ 
-          width: 100 + (currentData.rms * 450),
-          height: 100 + (currentData.rms * 450),
-          opacity: 0.6 + (currentData.rms * 0.4) 
-        }}
-        // transitionを少し緩やかにして計算負荷を下げる
-        transition={{ type: "spring", stiffness: 200, damping: 30, mass: 1 }}
-      />
-    </motion.div>
-  )}
-</AnimatePresence>
-
-          {/* コンテンツレイヤー：animate-ping を復活 */}
-          <div className="relative z-10 flex flex-col items-center justify-center">
-{/* カウントダウン表示：0を表示しないように修正 */}
-<div className="text-8xl font-mono font-black tracking-tighter">
-  {isCountingDown && countdown > 0 ? (
-    <span key={countdown} className="text-voca-primary inline-block animate-[ping_0.5s_ease-in-out_1]">
       {countdown}
-    </span>
-  ) : (
-    <span className={isRunning ? "text-voca-text" : "text-voca-text/20"}>
-      {isRunning ? (note || "---") : "---"}
-    </span>
-  )}
-</div>
-
-            <div className="text-xl font-bold mt-4 font-mono">
-              {isCountingDown ? "READY..." : (isRunning && pitch ? `${pitch.toFixed(1)} Hz` : "WAITING")}
-            </div>
-
-            {/* メーター表示 */}
-            {isRunning && (
-              <div className="mt-6 space-y-5 w-full animate-in fade-in duration-700">
-                <div className="flex flex-col items-center">
-                  <div className="relative w-36 h-10 overflow-hidden">
-                    <svg viewBox="0 0 100 50" className="w-full">
-                      <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="currentColor" strokeWidth="1" className="text-voca-text/10" />
-                      <motion.line
-                        x1="50" y1="50" x2="50" y2="12"
-                        stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-                        className="text-voca-primary"
-                        style={{ transformOrigin: "50px 50px" }}
-                        animate={{ rotate: needleRotation }}
-                        transition={{ type: "spring", stiffness: 150, damping: 15 }}
-                      />
-                    </svg>
-                  </div>
-                  <p className="text-[10px] font-mono font-bold text-voca-primary tracking-[0.2em] mt-1">
-                    {currentData?.cents ? (currentData.cents > 0 ? `+${currentData.cents}` : currentData.cents) : "0"} CENTS
-                  </p>
-                </div>
-
-                <div className="w-full max-w-[180px] mx-auto">
-                  <div className="h-1.5 bg-gray-200/40 rounded-full overflow-hidden backdrop-blur-sm">
-                    <div 
-                      className="h-full bg-voca-secondary transition-all duration-300"
-                      style={{ width: `${(confidence * 100).toFixed(0)}%` }} 
-                    />
-                  </div>
-                  <p className="text-[8px] text-voca-text/40 mt-2 font-bold uppercase tracking-[0.15em]">
-                    Confidence: {(confidence * 100).toFixed(0)}%
-                  </p>
-                </div>
-              </div>
-            )}
+    </motion.span>
+  </div>
+)}
           </div>
         </div>
-
         {/* 操作ボタン */}
-        <div className="space-y-4">
+        <div className="space-y-4 relative z-20">
           {!isRunning ? (
             <button
-              onClick={() => start(new AudioContext())}
+              onClick={start}
               disabled={isCountingDown}
-              className={`w-full py-5 rounded-full font-bold text-xl transition-all shadow-md active:scale-95
-                ${isCountingDown ? "bg-voca-text/80 text-voca-primary" : "bg-voca-primary text-white hover:opacity-90"}`}
+              className={`w-full py-5 rounded-full font-bold text-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-3
+                ${isCountingDown
+                  ? "bg-voca-text/80 cursor-not-allowed text-voca-primary"
+                  : "bg-voca-primary text-white hover:opacity-90"}`}
             >
               {isCountingDown ? `START IN ${countdown}...` : "診断スタート"}
             </button>
@@ -157,23 +91,18 @@ const VocaScanTuner: React.FC = () => {
           )}
         </div>
 
-        {/* 診断結果 ＆ JSON保存 */}
+        {/* 診断結果表示 */}
         <div className="mt-8 pt-4">
-          {error && <div className="p-4 bg-red-50 text-red-500 rounded-2xl text-center text-sm font-bold">{error}</div>}
+          {error && <div className="p-4 bg-red-50 rounded-2xl border border-red-100 text-center text-red-500 font-bold text-sm">{error}</div>}
 
           {diagnosis && !error && !isAnalyzing && (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500 text-center">
               <div className="p-6 bg-gradient-to-br from-voca-secondary to-voca-secondary/80 rounded-[2rem] text-white shadow-sm">
-                <p className="text-[10px] font-bold opacity-70 tracking-widest uppercase">Total Score</p>
-                <div className="text-6xl font-black tracking-tighter">{displayScore}</div>
+                <p className="text-[10px] font-bold opacity-70 tracking-widest uppercase">Score (V8 Demo)</p>
+                <div className="text-6xl font-black tracking-tighter">
+                  {Math.min(100, Math.floor(diagnosis.frames.length / 5))}
+                </div>
               </div>
-              
-              <button
-                onClick={downloadJsonResult}
-                className="w-full py-4 rounded-2xl bg-voca-bg text-voca-text/60 text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-voca-bg/80 transition-all border border-gray-100 flex items-center justify-center gap-2"
-              >
-                <span>📥</span> 診断ログをJSONで保存
-              </button>
             </div>
           )}
         </div>

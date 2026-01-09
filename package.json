@@ -11,6 +11,8 @@
     "lp:build": "npx @tailwindcss/cli -i ./src/App.css -o ./lp/dist/lp-style.css --minify"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-backend-wasm": "^4.22.0",
     "framer-motion": "^12.24.11",
     "p5": "^2.1.1",
     "p5.sound": "^0.2.0",

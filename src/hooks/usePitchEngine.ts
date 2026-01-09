@@ -1,105 +1,88 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { CrepeEngine } from '../audio/CrepeEngine';
 import { DetailedPitchData, DiagnosisSession } from '../types';
 
+export const engineInstance = new CrepeEngine();
+
 export const usePitchEngine = () => {
-  const [engine] = useState(() => new CrepeEngine());
-  
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const [isReady, setIsReady] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
   const [currentData, setCurrentData] = useState<DetailedPitchData | null>(null);
   const [diagnosis, setDiagnosis] = useState<DiagnosisSession | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // 100点満点のスコア表示用ステート
-  const [displayScore, setDisplayScore] = useState<number>(0);
-
-  const framesRef = useRef<DetailedPitchData[]>([]);
-
-const start = useCallback(async (audioCtx: AudioContext) => {
-  if (isCountingDown || isRunning) return;
-
-  setError(null);
-  setDiagnosis(null);
-  setDisplayScore(0);
-  framesRef.current = [];
-  setIsCountingDown(true);
-  setCountdown(3); // 3から開始
-
-  const timer = setInterval(() => {
-    setCountdown((prev) => {
-      // 1の次にここが呼ばれたら、タイマーを止めて0は表示させない
-      if (prev <= 1) {
-        clearInterval(timer);
-        return 0; 
+  useEffect(() => {
+    const setup = async () => {
+      try {
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        await engineInstance.init(audioCtxRef.current);
+        setIsReady(true);
+      } catch (err) {
+        console.error("Engine Init Error:", err);
+        setError("初期化失敗：マイクを許可して再読み込みしてください");
       }
-      return prev - 1;
-    });
-  }, 1000);
+    };
+    setup();
+  }, []);
 
-  setTimeout(async () => {
-    try {
-      await engine.start(audioCtx, (data) => {
-        setCurrentData(data);
-        framesRef.current.push(data);
-      });
-      setIsCountingDown(false); // ここで1→計測へ切り替える
-      setIsRunning(true);
-    } catch (err) {
-      setError("マイクの起動に失敗しました");
-      setIsCountingDown(false);
+  const start = useCallback(async () => {
+    if (!isReady || isRunning) return;
+
+    // ★重要: ボタンクリックのコンテキストで AudioContext を再開させる
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      await audioCtxRef.current.resume();
     }
-  }, 3000); // ちょうど3秒後にスタート
-}, [engine, isCountingDown, isRunning]);
+
+    setIsCountingDown(true);
+    setCountdown(3);
+    setError(null);
+    setDiagnosis(null);
+
+    const timer = setInterval(() => {
+      setCountdown(p => (p <= 1 ? (clearInterval(timer), 0) : p - 1));
+    }, 1000);
+
+    setTimeout(async () => {
+      try {
+        await engineInstance.start(data => setCurrentData(data));
+        setIsRunning(true);
+        setIsCountingDown(false);
+      } catch (e) { 
+        console.error(e);
+        setError("開始に失敗しました"); 
+        setIsCountingDown(false); 
+      }
+    }, 3000);
+  }, [isReady, isRunning]);
 
   const stop = useCallback(async () => {
+    if (!isRunning) return null;
     setIsAnalyzing(true);
+    setIsRunning(false);
     try {
-      await engine.stop();
-      
-      // DiagnosisSession 型の全ての必須プロパティを満たすように作成
-      const sessionData: DiagnosisSession = {
-        session_id: crypto.randomUUID(),
-        diagnosis_id: crypto.randomUUID(), // 必須プロパティ
-        timestamp: new Date().toISOString(),
-        version: "7.0.0",                 // 必須プロパティ
-        frames: [...framesRef.current],
-        audio_base64: "",                // 必須（現状空文字）
-        api_response: null,               // 必須（現状null）
-      };
-
-      const score = Math.min(100, Math.floor(framesRef.current.length / 5));
-      setDisplayScore(score);
-
-      setIsRunning(false);
-      setCurrentData(null);
-      setDiagnosis(sessionData);
-      setIsAnalyzing(false);
-      return sessionData;
-    } catch (err) {
-      setError("解析中にエラーが発生しました");
-      setIsRunning(false);
-      setIsAnalyzing(false);
-      return null;
+      const res = await engineInstance.stop();
+      setDiagnosis(res);
+      return res;
+    } catch (e) { 
+      setError("停止失敗"); 
+      return null; 
+    } finally { 
+      setIsAnalyzing(false); 
+      setCurrentData(null); 
     }
-  }, [engine]);
+  }, [isRunning]);
 
-  return {
-    isRunning,
-    isCountingDown,
-    countdown,
-    isAnalyzing,
-    error,
-    diagnosis,
-    displayScore, // UI表示用のスコア
-    currentData,
+  return { 
+    isReady, isRunning, isCountingDown, countdown, isAnalyzing, error, diagnosis, currentData, 
     pitch: currentData?.f0 || 0,
     note: currentData?.noteName || "",
     confidence: currentData?.conf || 0,
-    start,
-    stop
+    start, stop 
   };
 };
