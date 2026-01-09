@@ -5,6 +5,7 @@ import { getPitchDetails } from '../utils/pitchUtils';
 // ml5 の型定義エラー回避
 declare const ml5: any;
 
+
 export class CrepeEngine {
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
@@ -39,41 +40,50 @@ export class CrepeEngine {
   /**
    * 計測開始
    */
-  async start() {
-    if (this.isRunning) return;
+ // src/audio/CrepeEngine.ts
 
-    try {
-      // 1. マイクアクセス取得
+// 表示用数値をリセットするメソッド
+private resetValues() {
+  this.currentRMS = 0;
+  this.currentFreq = 0;
+  this.currentCents = 0;
+  this.currentNote = "---";
+  this.currentConf = 0;
+  this.frames = []; // 過去のフレームもクリア
+}
+
+async start() {
+  if (this.isRunning) return;
+
+  try {
+    // 【残像対策】開始前に数値をリセット
+    this.resetValues();
+
+    // 【ラグ対策】AudioContextとマイクをここで先に確保
+    if (!this.audioContext) {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // 2. Web Audio 設定
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 2048;
-
       const source = this.audioContext.createMediaStreamSource(this.stream);
       source.connect(this.analyser);
 
-      // 3. CREPE モデルのロードと初期化
-this.pitchModel = await ml5.pitchDetection(
-        '/model/pitch-detection/crepe', // ← 正しいパス（スラッシュなし）
+      this.pitchModel = await ml5.pitchDetection(
+        '/model/pitch-detection/crepe',
         this.audioContext,
         this.stream,
-        () => console.log('CREPE Model Loaded')
+        () => console.log('Model Warm-up Ready')
       );
-
-      this.frames = [];
-      this.startTime = performance.now();
-      this.isRunning = true;
-      
-      // 4. 解析ループ開始
-      this.loop();
-      console.log("🚀 VocaScan Engine V8.2 Started");
-    } catch (err) {
-      console.error("Engine Start Error:", err);
-      throw err;
     }
+
+    this.startTime = performance.now();
+    this.isRunning = true;
+    this.loop();
+  } catch (err) {
+    console.error("Start Error:", err);
   }
+}
 
   /**
    * メイン解析ループ
@@ -88,7 +98,7 @@ this.pitchModel = await ml5.pitchDetection(
       if (frequency) {
         const details = getPitchDetails(frequency);
         this.currentFreq = frequency;
-        this.currentNote = details.noteName; 
+        this.currentNote = details.noteName;
         this.currentCents = details.cents;
         this.currentConf = 0.85 + Math.random() * 0.1; // 安定した信頼度の演出
       } else {
@@ -101,7 +111,7 @@ this.pitchModel = await ml5.pitchDetection(
         const bufferLength = activeAnalyser.frequencyBinCount;
         const dataArray = new Float32Array(bufferLength);
         activeAnalyser.getFloatTimeDomainData(dataArray);
-        
+
         let sumSquared = 0;
         if (dataArray && dataArray.length > 0) {
           for (let i = 0; i < dataArray.length; i++) {
@@ -126,7 +136,7 @@ this.pitchModel = await ml5.pitchDetection(
           });
         }
       }
-      
+
       // 次のフレームへ (FPS制御)
       if (this.isRunning) {
         setTimeout(this.loop, 1000 / 60);

@@ -30,6 +30,10 @@ export const usePitchEngine = () => {
     setIsCountingDown(true);
     setCountdown(3);
 
+    // ★ カウントダウンが始まった瞬間に、裏でマイクとモデルを準備(Warm-up)
+    // これにより GO! の時のラグが消える
+    engineInstance.start();
+
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {

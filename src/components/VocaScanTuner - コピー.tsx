@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { usePitchEngine } from "../hooks/usePitchEngine";
 import { FastVisualizer } from './FastVisualizer';
-import { motion } from "framer-motion"; // ★これが必要です！
+import { motion } from "framer-motion";
 
 const VocaScanTuner: React.FC = () => {
+  // アプリ全体のリセット用Key
   const [sessionInfo] = useState(() => {
     const query = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
     return {
@@ -17,8 +18,6 @@ const VocaScanTuner: React.FC = () => {
     isAnalyzing,
     isCountingDown,
     countdown,
-    note,
-    confidence,
     diagnosis,
     error,
     start,
@@ -38,22 +37,22 @@ const VocaScanTuner: React.FC = () => {
             Unwind. Recharge. Sing.
           </p>
         </header>
+
         {/* ディスプレイエリア */}
         <div className={`relative w-full aspect-square max-w-[400px] mx-auto 
-  rounded-[3rem] p-10 text-center mb-8 shadow-inner transition-all duration-500
-  ${(isCountingDown || isAnalyzing) ? 'bg-black' : 'bg-voca-surface'}`} // ★解析中も黒背景に
+          rounded-[3rem] p-10 text-center mb-8 shadow-inner transition-all duration-500
+          ${(isCountingDown || isAnalyzing) ? 'bg-black' : 'bg-voca-surface'}`} 
         >
-
           {/* 背景兼メイン描画レイヤー */}
           <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-[3rem]">
-            {/* FastVisualizer に isAnalyzing も条件として渡す（内部で真っ黒を維持するため） */}
+            {/* 解析中もカウントダウン扱いにしてメーターを隠す */}
             <FastVisualizer isRunning={isRunning} isCountingDown={isCountingDown || isAnalyzing} />
           </div>
 
           {/* コンテンツレイヤー */}
           <div className="relative z-10 h-full flex items-center justify-center pointer-events-none">
-
-            {/* 解析中の表示：ぐるぐるスピナーと文字 */}
+            
+            {/* 解析中の表示 */}
             {isAnalyzing && (
               <div className="flex flex-col items-center animate-in fade-in duration-500">
                 <div className="w-12 h-12 border-4 border-voca-primary/30 border-t-voca-primary rounded-full animate-spin mb-4" />
@@ -63,47 +62,47 @@ const VocaScanTuner: React.FC = () => {
               </div>
             )}
 
-            {/* カウントダウン表示（解析中でない時のみ） */}
+            {/* カウントダウン表示 */}
             {!isRunning && isCountingDown && !isAnalyzing && (
               <div className="flex items-center justify-center">
                 <motion.span
-                  key={countdown}
-                  initial={{ scale: 0.2, opacity: 0 }}
-                  animate={{ scale: 1.2, opacity: 1 }}
+                  key={countdown} 
+                  initial={{ scale: 0.2, opacity: 0 }} 
+                  animate={{ scale: 1.2, opacity: 1 }} 
                   transition={{ duration: 0.4, ease: "easeOut" }}
                   className="text-9xl font-mono font-black text-voca-primary"
                 >
-                  {countdown}
+                  {countdown === 0 ? "GO!" : countdown}
                 </motion.span>
               </div>
             )}
           </div>
         </div>
+
         {/* 操作ボタン */}
-<div className="space-y-4 relative z-20">
-  {!isRunning ? (
-    <button
-      onClick={start}
-      disabled={isCountingDown || isAnalyzing} // ★解析中も押せないように
-      className={`w-full py-5 rounded-full font-bold text-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-3
-        ${(isCountingDown || isAnalyzing)
-          ? "bg-voca-text/20 cursor-not-allowed text-voca-text/40"
-          : "bg-voca-primary text-white hover:opacity-90"}`}
-    >
-      {/* テキストを「測定」に変更 */}
-      {isCountingDown ? `READY... ${countdown}` : isAnalyzing ? "解析中..." : "測定スタート"}
-    </button>
-  ) : (
-    <button
-      onClick={stop}
-      disabled={isAnalyzing}
-      className={`w-full py-5 rounded-full font-bold text-xl text-white transition-all shadow-md
-        ${isAnalyzing ? "bg-gray-300" : "bg-voca-text hover:bg-black active:scale-95"}`}
-    >
-      {isAnalyzing ? "解析中…" : "測定を終了して解析"}
-    </button>
-  )}
-</div>
+        <div className="space-y-4 relative z-20">
+          {!isRunning ? (
+            <button
+              onClick={start}
+              disabled={isCountingDown || isAnalyzing}
+              className={`w-full py-5 rounded-full font-bold text-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-3
+                ${(isCountingDown || isAnalyzing)
+                  ? "bg-voca-text/10 cursor-not-allowed text-voca-text/30"
+                  : "bg-voca-primary text-white hover:opacity-90"}`}
+            >
+              {isCountingDown ? `READY...` : isAnalyzing ? "解析中..." : "測定スタート"}
+            </button>
+          ) : (
+            <button
+              onClick={stop}
+              disabled={isAnalyzing}
+              className={`w-full py-5 rounded-full font-bold text-xl text-white transition-all shadow-md
+                ${isAnalyzing ? "bg-gray-300" : "bg-voca-text hover:bg-black active:scale-95"}`}
+            >
+              {isAnalyzing ? "解析中…" : "測定を終了して解析"}
+            </button>
+          )}
+        </div>
 
         {/* 診断結果表示 */}
         <div className="mt-8 pt-4">
@@ -112,11 +111,27 @@ const VocaScanTuner: React.FC = () => {
           {diagnosis && !error && !isAnalyzing && (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500 text-center">
               <div className="p-6 bg-gradient-to-br from-voca-secondary to-voca-secondary/80 rounded-[2rem] text-white shadow-sm">
-                <p className="text-[10px] font-bold opacity-70 tracking-widest uppercase">Score (V8 Demo)</p>
+                <p className="text-[10px] font-bold opacity-70 tracking-widest uppercase">Score (V8.2)</p>
                 <div className="text-6xl font-black tracking-tighter">
-                  {Math.min(100, Math.floor(diagnosis.frames.length / 5))}
+                  {/* スコア計算ロジック例 */}
+                  {Math.min(100, Math.floor(diagnosis.frames.length / 10))}
                 </div>
               </div>
+              
+              {/* デバッグ用JSON出力（チャッピーへの自慢用！） */}
+              <button 
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(diagnosis, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `vocascan_result.json`;
+                  a.click();
+                }}
+                className="text-[10px] text-voca-text/30 underline uppercase tracking-widest mt-2 block w-full"
+              >
+                Download Analysis JSON
+              </button>
             </div>
           )}
         </div>
@@ -126,21 +141,6 @@ const VocaScanTuner: React.FC = () => {
             ← APPS HUB に戻る
           </a>
         </div>
-        {diagnosis && (
-  <button 
-    onClick={() => {
-      const blob = new Blob([JSON.stringify(diagnosis, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `voca_scan_${diagnosis.diagnosis_id}.json`;
-      a.click();
-    }}
-    className="mt-4 text-[10px] text-voca-primary underline opacity-50 hover:opacity-100"
-  >
-    デバッグ用JSONをダウンロード
-  </button>
-)}
       </div>
       <p className="mt-8 text-[10px] text-voca-text/20 font-bold uppercase tracking-[0.3em]">© 2026 Voca-nical</p>
     </div>
