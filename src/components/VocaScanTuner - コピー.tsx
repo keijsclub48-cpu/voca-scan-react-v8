@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { usePitchEngine } from "../hooks/usePitchEngine";
 import { FastVisualizer } from './FastVisualizer';
-import { AnalysisPanel } from './Analysis/AnalysisPanel'; // 追加
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 const VocaScanTuner: React.FC = () => {
   // アプリ全体のリセット用Key
@@ -19,9 +18,7 @@ const VocaScanTuner: React.FC = () => {
     isAnalyzing,
     isCountingDown,
     countdown,
-    diagnosis,       // ローカルの簡易データ
-    analysisStatus,  // サーバーのステータス ('waking' | 'processing' | 'completed' etc)
-    analysisResult,  // サーバーからの精密解析結果
+    diagnosis,
     error,
     start,
     stop
@@ -46,17 +43,21 @@ const VocaScanTuner: React.FC = () => {
           rounded-[3rem] p-10 text-center mb-8 shadow-inner transition-all duration-500
           ${(isCountingDown || isAnalyzing) ? 'bg-black' : 'bg-voca-surface'}`} 
         >
+          {/* 背景兼メイン描画レイヤー */}
           <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-[3rem]">
+            {/* 解析中もカウントダウン扱いにしてメーターを隠す */}
             <FastVisualizer isRunning={isRunning} isCountingDown={isCountingDown || isAnalyzing} />
           </div>
 
+          {/* コンテンツレイヤー */}
           <div className="relative z-10 h-full flex items-center justify-center pointer-events-none">
-            {/* 解析中のスピナー表示（サーバー待機中も含む） */}
+            
+            {/* 解析中の表示 */}
             {isAnalyzing && (
               <div className="flex flex-col items-center animate-in fade-in duration-500">
                 <div className="w-12 h-12 border-4 border-voca-primary/30 border-t-voca-primary rounded-full animate-spin mb-4" />
                 <p className="text-voca-primary text-xs font-bold tracking-[0.3em] animate-pulse">
-                  {analysisStatus === 'waking' ? 'WAKING UP SERVER...' : 'ANALYZING...'}
+                  ANALYZING...
                 </p>
               </div>
             )}
@@ -103,32 +104,36 @@ const VocaScanTuner: React.FC = () => {
           )}
         </div>
 
-        {/* --- 診断結果・解析パネルエリア --- */}
-        <div className="mt-8">
-          <AnimatePresence mode="wait">
-            {/* エラー表示 */}
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-4 bg-red-50 rounded-2xl border border-red-100 text-center text-red-500 font-bold text-sm"
-              >
-                {error}
-              </motion.div>
-            )}
+        {/* 診断結果表示 */}
+        <div className="mt-8 pt-4">
+          {error && <div className="p-4 bg-red-50 rounded-2xl border border-red-100 text-center text-red-500 font-bold text-sm">{error}</div>}
 
-            {/* 解析パネルの表示：診断データがあり、エラーがない場合 */}
-            {diagnosis && !error && (
-              <motion.div
-                key="analysis-panel"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
+          {diagnosis && !error && !isAnalyzing && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500 text-center">
+              <div className="p-6 bg-gradient-to-br from-voca-secondary to-voca-secondary/80 rounded-[2rem] text-white shadow-sm">
+                <p className="text-[10px] font-bold opacity-70 tracking-widest uppercase">Score (V8.2)</p>
+                <div className="text-6xl font-black tracking-tighter">
+                  {/* スコア計算ロジック例 */}
+                  {Math.min(100, Math.floor(diagnosis.frames.length / 10))}
+                </div>
+              </div>
+              
+              {/* デバッグ用JSON出力（チャッピーへの自慢用！） */}
+              <button 
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(diagnosis, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `vocascan_result.json`;
+                  a.click();
+                }}
+                className="text-[10px] text-voca-text/30 underline uppercase tracking-widest mt-2 block w-full"
               >
-                <AnalysisPanel sessionData={diagnosis} />
-              </motion.div>
-            )}
-          </AnimatePresence>
+                Download Analysis JSON
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="mt-8 text-center border-t border-gray-50 pt-6">

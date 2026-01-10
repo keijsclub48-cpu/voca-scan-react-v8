@@ -1,25 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { engineInstance } from '../audio/CrepeEngine';
 import { DiagnosisSession } from '../types';
-import { useAnalysis } from './useAnalysis'; // 精密解析用フックをインポート
-import { pingServer } from '../apiClient';    // スリープ対策用
 
 export const usePitchEngine = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [isCountingDown, setIsCountingDown] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const [diagnosis, setDiagnosis] = useState<DiagnosisSession | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // --- 【新規】精密解析APIとの通信を管理するフック ---
-  const { 
-    startAnalysis, 
-    status: analysisStatus, 
-    result: analysisResult, 
-    error: analysisError 
-  } = useAnalysis();
-
-  // ブラウザ復旧ロジック (Visibility Change)
+  // ★ 自動復旧ロジック
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === "visible") {
@@ -34,18 +25,18 @@ export const usePitchEngine = () => {
     };
   }, []);
 
-  /**
-   * 計測開始
-   */
   const start = useCallback(async () => {
     setError(null);
     setIsCountingDown(true);
     setCountdown(3);
+    // カウントダウン中にサーバーを叩いて起こしておく (スリープ対策)
+    fetch(`${import.meta.env.VITE_API_BASE}/health`).catch(() => { });
 
-    // ★ Render.com のスリープ対策：カウントダウン中にサーバーを起こしておく
-    pingServer().catch(() => {}); 
-
-    // モデルの Warm-up
+    setError(null);
+    setIsCountingDown(true);
+    
+    // ★ カウントダウンが始まった瞬間に、裏でマイクとモデルを準備(Warm-up)
+    // これにより GO! の時のラグが消える
     engineInstance.start();
 
     const timer = setInterval(() => {
@@ -62,44 +53,27 @@ export const usePitchEngine = () => {
     }, 1000);
   }, []);
 
-  /**
-   * 計測停止
-   */
-const stop = useCallback(async () => {
+  const stop = useCallback(async () => {
     setIsRunning(false);
-    
+    setIsAnalyzing(true);
     try {
       const result = await engineInstance.stop();
       setDiagnosis(result);
-
-      if (result.frames && result.frames.length > 0) {
-        startAnalysis({
-          session_id: result.session_id,
-          frame_rate: 1000 / 60,
-          frames: result.frames.map((f: any) => ({
-            t: f.t / 1000,
-            f0: Number.isFinite(f.f0) ? f.f0 : 0,
-            // ここを確実に confidence にします
-            confidence: typeof f.conf === 'number' ? f.conf : (f.confidence || 0)
-          }))
-        });
-      }
     } catch (err) {
       setError("測定データの取得に失敗しました。");
       console.error(err);
+    } finally {
+      setIsAnalyzing(false);
     }
-  }, [startAnalysis]);
+  }, []);
 
   return {
     isRunning,
     isCountingDown,
-    // ローカル解析中、またはサーバー解析中なら「解析中」とみなす
-    isAnalyzing: analysisStatus === 'waking' || analysisStatus === 'processing',
+    isAnalyzing,
     countdown,
-    diagnosis,       // ローカルの簡易結果
-    analysisResult,  // サーバーからの精密結果
-    analysisStatus,  // 'idle' | 'waking' | 'processing' | 'completed' | 'failed'
-    error: error || analysisError,
+    diagnosis,
+    error,
     start,
     stop
   };
