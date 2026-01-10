@@ -29,7 +29,12 @@ export const usePitchEngine = () => {
     setError(null);
     setIsCountingDown(true);
     setCountdown(3);
+    // カウントダウン中にサーバーを叩いて起こしておく (スリープ対策)
+    fetch(`${import.meta.env.VITE_API_BASE}/health`).catch(() => { });
 
+    setError(null);
+    setIsCountingDown(true);
+    
     // ★ カウントダウンが始まった瞬間に、裏でマイクとモデルを準備(Warm-up)
     // これにより GO! の時のラグが消える
     engineInstance.start();
